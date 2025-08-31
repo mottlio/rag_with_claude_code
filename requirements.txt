@@ -1,0 +1,47 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+# platform: osx-64
+_openmp_mutex=4.5=4_kmp_llvm
+bzip2=1.0.8=h6c40b1e_6
+ca-certificates=2025.8.3=hbd8a1cb_0
+expat=2.7.1=h6d0c2b6_0
+filelock=3.19.1=pyhd8ed1ab_0
+fsspec=2025.7.0=pyhd8ed1ab_0
+jinja2=3.1.6=pyhd8ed1ab_0
+libabseil=20240116.2=cxx17_hf036a51_1
+libblas=3.9.0=34_h7f60823_openblas
+libcblas=3.9.0=34_hff6cab4_openblas
+libcxx=19.1.7=haebbb44_3
+libffi=3.4.4=hecd8cb5_1
+libgfortran=15.1.0=h5f6db21_1
+libgfortran5=15.1.0=hfa3c126_1
+liblapack=3.9.0=34_h236ab99_openblas
+libmpdec=4.0.0=h46256e1_0
+libopenblas=0.3.30=openmp_h83c2472_2
+libprotobuf=4.25.3=h34eed0b_0
+libtorch=2.4.1=cpu_mkl_h81811b0_100
+libuv=1.51.0=h58003a5_1
+llvm-openmp=19.1.7=h5048363_2
+markupsafe=3.0.2=py313h717bdf5_1
+mkl=2023.2.0=h694c41f_50501
+mpmath=1.3.0=pyhd8ed1ab_1
+ncurses=6.5=h923df54_0
+networkx=3.5=pyhe01879c_0
+numpy=2.3.2=py313hdb1a8e5_2
+openssl=3.5.2=h6e31bce_0
+pip=25.1=pyhc872135_2
+python=3.13.5=h81a7116_100_cp313
+python_abi=3.13=0_cp313
+pytorch=2.4.1=cpu_mkl_py313h5309be8_100
+readline=8.3=h49f2429_0
+setuptools=78.1.1=py313hecd8cb5_0
+sleef=3.9.0=h289094c_0
+sqlite=3.50.2=hc8b0dd6_1
+sympy=1.14.0=pyh04b8f61_5
+tbb=2021.8.0=ha357a0b_0
+tk=8.6.15=h3a5a201_0
+typing_extensions=4.15.0=pyhcf101f3_0
+tzdata=2025b=h04d1e81_0
+wheel=0.45.1=py313hecd8cb5_0
+xz=5.6.4=h46256e1_1
+zlib=1.2.13=h4b97444_1
