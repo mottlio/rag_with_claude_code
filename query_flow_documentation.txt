@@ -1,0 +1,77 @@
+Query Handling Flow: Frontend to Backend
+==========================================
+
+This document traces the complete process of handling a user query from the frontend interface through the backend RAG system.
+
+1. FRONTEND INITIATION (script.js:45-96)
+=========================================
+- User types query and clicks send or presses Enter
+- Input is disabled and loading message shown
+- Sends POST request to `/api/query`:
+  
+  fetch('/api/query', {
+    method: 'POST',
+    body: JSON.stringify({
+      query: query,
+      session_id: currentSessionId
+    })
+  })
+
+2. FASTAPI ENDPOINT (app.py:56-74)
+==================================
+- @app.post("/api/query") receives the request
+- Creates session ID if none provided
+- Calls rag_system.query(request.query, session_id)
+- Returns QueryResponse with answer, sources, session_id
+
+3. RAG SYSTEM ORCHESTRATION (rag_system.py:102-140)
+===================================================
+- Receives user query and session ID
+- Creates prompt: f"Answer this question about course materials: {query}"
+- Retrieves conversation history from session manager
+- Calls AI generator with tools and conversation context
+- Gets sources from tool manager after AI response
+- Updates conversation history
+- Returns (response, sources) tuple
+
+4. AI GENERATION (ai_generator.py:43-135)
+=========================================
+- First API call: Claude with search tools available
+- System prompt: Instructs Claude on search tool usage
+- Tool execution: If Claude uses search tool, executes it via tool manager
+- Second API call: Claude synthesizes search results into final answer
+- Returns final text response
+
+5. TOOL EXECUTION (Search Process)
+==================================
+- Claude decides if search is needed based on query
+- CourseSearchTool executes semantic search on ChromaDB
+- Vector store returns relevant course chunks
+- Sources are tracked in tool manager
+
+6. RESPONSE FLOW BACK
+=====================
+- AI generator returns text response to RAG system
+- RAG system returns (response, sources) to FastAPI
+- FastAPI wraps in QueryResponse JSON
+- Frontend receives JSON and displays answer
+- Sources shown as expandable list
+- Loading message replaced with actual response
+
+KEY FEATURES
+============
+- Session management: Maintains conversation context
+- Tool-based search: Claude autonomously decides when to search
+- Two-stage AI: Initial tool planning + final synthesis
+- Error handling: Graceful fallbacks throughout chain
+- Real-time UI: Loading states and responsive interface
+
+ARCHITECTURE NOTES
+==================
+The architecture follows a clean request-response pattern with clear separation between:
+- Presentation layer (frontend)
+- API layer (FastAPI) 
+- Orchestration layer (RAG system)
+- AI/search components
+
+This separation allows for maintainable, testable, and scalable code organization.

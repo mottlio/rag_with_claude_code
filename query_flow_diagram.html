@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG System Query Flow Diagram</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        
+        #diagram {
+            width: 100%;
+            height: 800px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .layer-group {
+            cursor: pointer;
+        }
+        
+        .layer-rect {
+            fill: rgba(255, 255, 255, 0.95);
+            stroke: #34495e;
+            stroke-width: 2;
+            rx: 12;
+            ry: 12;
+        }
+        
+        .layer-title {
+            font-size: 16px;
+            font-weight: bold;
+            fill: #2c3e50;
+            text-anchor: middle;
+        }
+        
+        .component-rect {
+            fill: #3498db;
+            stroke: #2980b9;
+            stroke-width: 2;
+            rx: 8;
+            ry: 8;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .component-rect:hover {
+            fill: #5dade2;
+        }
+        
+        .component-text {
+            font-size: 12px;
+            fill: white;
+            text-anchor: middle;
+            font-weight: 500;
+            pointer-events: none;
+        }
+        
+        .flow-arrow {
+            stroke: #e74c3c;
+            stroke-width: 3;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+        
+        .data-flow {
+            stroke: #27ae60;
+            stroke-width: 2;
+            fill: none;
+            stroke-dasharray: 5,5;
+            marker-end: url(#arrowhead-data);
+        }
+        
+        .flow-label {
+            font-size: 11px;
+            fill: #34495e;
+            text-anchor: middle;
+            font-weight: 600;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            max-width: 300px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        .legend {
+            margin-top: 20px;
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .legend-item {
+            display: inline-block;
+            margin-right: 30px;
+            margin-bottom: 10px;
+        }
+        
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 12px;
+            margin-right: 8px;
+            vertical-align: middle;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RAG System Query Flow Diagram</h1>
+        <svg id="diagram"></svg>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <span class="legend-color" style="background: #e74c3c;"></span>
+                Request Flow
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #27ae60; border: 1px dashed #27ae60;"></span>
+                Data Flow
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #3498db;"></span>
+                Components
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        // Set up SVG dimensions
+        const width = 1160;
+        const height = 800;
+        const svg = d3.select("#diagram")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Define arrow markers
+        const defs = svg.append("defs");
+        
+        // Red arrow for request flow
+        defs.append("marker")
+            .attr("id", "arrowhead")
+            .attr("viewBox", "0 0 10 10")
+            .attr("refX", 9)
+            .attr("refY", 3)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,0 L0,6 L9,3 z")
+            .attr("fill", "#e74c3c");
+
+        // Green arrow for data flow
+        defs.append("marker")
+            .attr("id", "arrowhead-data")
+            .attr("viewBox", "0 0 10 10")
+            .attr("refX", 9)
+            .attr("refY", 3)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,0 L0,6 L9,3 z")
+            .attr("fill", "#27ae60");
+
+        // Define layers and components
+        const layers = [
+            {
+                name: "Frontend Layer",
+                y: 50,
+                height: 120,
+                components: [
+                    {name: "User Input", x: 100, y: 90, width: 120, height: 40, 
+                     tooltip: "User types query and clicks send button (script.js:45-96)"},
+                    {name: "Send Message", x: 280, y: 90, width: 120, height: 40,
+                     tooltip: "Creates POST request to /api/query with query and session_id"},
+                    {name: "Loading State", x: 460, y: 90, width: 120, height: 40,
+                     tooltip: "Shows loading message while waiting for response"}
+                ]
+            },
+            {
+                name: "FastAPI Layer",
+                y: 200,
+                height: 120,
+                components: [
+                    {name: "@app.post()", x: 100, y: 240, width: 120, height: 40,
+                     tooltip: "FastAPI endpoint receives POST /api/query (app.py:56-74)"},
+                    {name: "Session Check", x: 280, y: 240, width: 120, height: 40,
+                     tooltip: "Creates session ID if none provided"},
+                    {name: "Call RAG System", x: 460, y: 240, width: 120, height: 40,
+                     tooltip: "Invokes rag_system.query(query, session_id)"}
+                ]
+            },
+            {
+                name: "RAG System Orchestrator",
+                y: 350,
+                height: 120,
+                components: [
+                    {name: "Get History", x: 100, y: 390, width: 120, height: 40,
+                     tooltip: "Retrieves conversation history from session manager"},
+                    {name: "Create Prompt", x: 280, y: 390, width: 120, height: 40,
+                     tooltip: "Wraps query: 'Answer this question about course materials: {query}'"},
+                    {name: "AI Generator", x: 460, y: 390, width: 120, height: 40,
+                     tooltip: "Calls AI generator with tools and conversation context"}
+                ]
+            },
+            {
+                name: "AI Generation Layer",
+                y: 500,
+                height: 120,
+                components: [
+                    {name: "First Claude Call", x: 100, y: 540, width: 120, height: 40,
+                     tooltip: "Claude API call with search tools available"},
+                    {name: "Tool Decision", x: 280, y: 540, width: 120, height: 40,
+                     tooltip: "Claude decides whether to use search tool based on query"},
+                    {name: "Second Claude Call", x: 460, y: 540, width: 120, height: 40,
+                     tooltip: "Claude synthesizes search results into final answer"}
+                ]
+            },
+            {
+                name: "Search & Storage Layer",
+                y: 650,
+                height: 120,
+                components: [
+                    {name: "Course Search Tool", x: 100, y: 690, width: 120, height: 40,
+                     tooltip: "Executes semantic search on course materials"},
+                    {name: "Vector Store", x: 280, y: 690, width: 120, height: 40,
+                     tooltip: "Handles ChromaDB operations and similarity search"},
+                    {name: "ChromaDB", x: 460, y: 690, width: 120, height: 40,
+                     tooltip: "Vector database storing embedded course chunks"}
+                ]
+            }
+        ];
+
+        // Response flow components
+        const responseFlow = [
+            {name: "Response Back", x: 700, y: 540, width: 140, height: 40,
+             tooltip: "AI response flows back through all layers"},
+            {name: "JSON Response", x: 700, y: 240, width: 140, height: 40,
+             tooltip: "FastAPI returns QueryResponse JSON"},
+            {name: "Update UI", x: 700, y: 90, width: 140, height: 40,
+             tooltip: "Frontend displays answer and sources, replaces loading"}
+        ];
+
+        // Draw layers
+        layers.forEach(layer => {
+            const layerGroup = svg.append("g").attr("class", "layer-group");
+            
+            // Layer background
+            layerGroup.append("rect")
+                .attr("class", "layer-rect")
+                .attr("x", 50)
+                .attr("y", layer.y)
+                .attr("width", 580)
+                .attr("height", layer.height);
+            
+            // Layer title
+            layerGroup.append("text")
+                .attr("class", "layer-title")
+                .attr("x", 340)
+                .attr("y", layer.y + 25)
+                .text(layer.name);
+            
+            // Components within layer
+            layer.components.forEach(comp => {
+                const compGroup = layerGroup.append("g");
+                
+                compGroup.append("rect")
+                    .attr("class", "component-rect")
+                    .attr("x", comp.x)
+                    .attr("y", comp.y)
+                    .attr("width", comp.width)
+                    .attr("height", comp.height);
+                
+                compGroup.append("text")
+                    .attr("class", "component-text")
+                    .attr("x", comp.x + comp.width/2)
+                    .attr("y", comp.y + comp.height/2 + 5)
+                    .text(comp.name);
+                
+                // Add tooltip interaction
+                compGroup
+                    .on("mouseover", function(event) {
+                        showTooltip(event, comp.tooltip);
+                    })
+                    .on("mouseout", hideTooltip);
+            });
+        });
+
+        // Draw response flow components
+        responseFlow.forEach(comp => {
+            const compGroup = svg.append("g");
+            
+            compGroup.append("rect")
+                .attr("class", "component-rect")
+                .style("fill", "#e67e22")
+                .style("stroke", "#d35400")
+                .attr("x", comp.x)
+                .attr("y", comp.y)
+                .attr("width", comp.width)
+                .attr("height", comp.height);
+            
+            compGroup.append("text")
+                .attr("class", "component-text")
+                .attr("x", comp.x + comp.width/2)
+                .attr("y", comp.y + comp.height/2 + 5)
+                .text(comp.name);
+            
+            // Add tooltip interaction
+            compGroup
+                .on("mouseover", function(event) {
+                    showTooltip(event, comp.tooltip);
+                })
+                .on("mouseout", hideTooltip);
+        });
+
+        // Draw flow arrows (request flow)
+        const requestFlows = [
+            // Frontend to FastAPI
+            {x1: 340, y1: 170, x2: 340, y2: 200, label: "POST /api/query"},
+            // FastAPI to RAG
+            {x1: 340, y1: 320, x2: 340, y2: 350, label: "rag_system.query()"},
+            // RAG to AI
+            {x1: 340, y1: 470, x2: 340, y2: 500, label: "generate_response()"},
+            // AI to Search
+            {x1: 340, y1: 620, x2: 340, y2: 650, label: "search_tool.execute()"},
+        ];
+
+        // Draw horizontal flows within layers
+        const horizontalFlows = [
+            // Frontend layer
+            {x1: 220, y1: 110, x2: 280, y2: 110},
+            {x1: 400, y1: 110, x2: 460, y2: 110},
+            // FastAPI layer
+            {x1: 220, y1: 260, x2: 280, y2: 260},
+            {x1: 400, y1: 260, x2: 460, y2: 260},
+            // RAG layer
+            {x1: 220, y1: 410, x2: 280, y2: 410},
+            {x1: 400, y1: 410, x2: 460, y2: 410},
+            // AI layer
+            {x1: 220, y1: 560, x2: 280, y2: 560},
+            {x1: 400, y1: 560, x2: 460, y2: 560},
+            // Search layer
+            {x1: 220, y1: 710, x2: 280, y2: 710},
+            {x1: 400, y1: 710, x2: 460, y2: 710},
+        ];
+
+        // Response flows (upward)
+        const responseFlows = [
+            {x1: 770, y1: 500, x2: 770, y2: 280, label: "Response"},
+            {x1: 770, y1: 200, x2: 770, y2: 130, label: "Display"}
+        ];
+
+        // Draw all flows
+        [...requestFlows, ...responseFlows].forEach(flow => {
+            svg.append("line")
+                .attr("class", "flow-arrow")
+                .attr("x1", flow.x1)
+                .attr("y1", flow.y1)
+                .attr("x2", flow.x2)
+                .attr("y2", flow.y2);
+            
+            if (flow.label) {
+                const midX = (flow.x1 + flow.x2) / 2;
+                const midY = (flow.y1 + flow.y2) / 2;
+                
+                svg.append("text")
+                    .attr("class", "flow-label")
+                    .attr("x", midX + 30)
+                    .attr("y", midY - 5)
+                    .text(flow.label);
+            }
+        });
+
+        // Draw horizontal flows
+        horizontalFlows.forEach(flow => {
+            svg.append("line")
+                .attr("class", "flow-arrow")
+                .attr("x1", flow.x1)
+                .attr("y1", flow.y1)
+                .attr("x2", flow.x2)
+                .attr("y2", flow.y2);
+        });
+
+        // Data flow from search back to AI
+        svg.append("line")
+            .attr("class", "data-flow")
+            .attr("x1", 580)
+            .attr("y1", 710)
+            .attr("x2", 580)
+            .attr("y2", 580)
+            .attr("stroke-dasharray", "5,5");
+
+        svg.append("text")
+            .attr("class", "flow-label")
+            .attr("x", 590)
+            .attr("y", 645)
+            .text("Search Results");
+
+        // Tooltip functions
+        function showTooltip(event, text) {
+            const tooltip = d3.select("#tooltip");
+            tooltip.style("opacity", 1)
+                .html(text)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 10) + "px");
+        }
+
+        function hideTooltip() {
+            d3.select("#tooltip").style("opacity", 0);
+        }
+
+    </script>
+</body>
+</html>
