@@ -1,0 +1,47 @@
+Course Outline Tool Implementation - Progress Summary
+=========================================================
+
+Overview:
+Added a second tool alongside the existing content search tool to handle course outline queries.
+
+Steps Completed:
+================
+
+1. Vector Store Enhancement (backend/vector_store.py:268-298)
+   - Added get_course_outline() method
+   - Resolves course names using semantic search
+   - Returns structured course data: title, link, instructor, and lesson list
+   - Handles JSON parsing of lesson metadata from ChromaDB
+
+2. Course Outline Tool Implementation (backend/search_tools.py:128-190)
+   - Created CourseOutlineTool class implementing Tool interface
+   - Tool definition for Anthropic API with course_name input parameter
+   - Execute method that calls vector store and formats results
+   - Formatted output includes course details and numbered lesson list
+
+3. Tool Registration (backend/rag_system.py:7,25,27)
+   - Imported CourseOutlineTool in RAG system
+   - Created outline_tool instance with vector_store dependency
+   - Registered new tool alongside existing search tool
+
+4. System Prompt Update (backend/ai_generator.py:8-36)
+   - Updated AI system prompt to describe both available tools
+   - Added specific usage instructions:
+     * search_course_content: For specific course content queries
+     * get_course_outline: For course structure/lesson list queries
+   - Maintained existing response protocols and formatting guidelines
+
+Functionality:
+==============
+The new tool handles course outline queries by:
+- Input: Course title (partial matches supported)
+- Output: Course title, course link, instructor, and complete lesson list
+- Data source: Course metadata from vector store's catalog collection
+- Integration: Fully registered and available to AI assistant
+
+Technical Notes:
+================
+- All files compile without syntax errors
+- Tool follows existing patterns and interfaces
+- Maintains separation of concerns between search and outline functions
+- Uses existing vector store infrastructure for course name resolution
