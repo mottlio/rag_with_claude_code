@@ -1,8 +1,10 @@
 import pytest
 import os
 import sys
-from unittest.mock import Mock, MagicMock
+import tempfile
+from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from typing import List, Dict, Any, Optional
+from fastapi.testclient import TestClient
 
 # Add the backend directory to Python path so we can import modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -12,6 +14,7 @@ from vector_store import SearchResults
 from search_tools import CourseSearchTool, CourseOutlineTool, ToolManager
 from ai_generator import AIGenerator
 from rag_system import RAGSystem
+from session_manager import SessionManager
 
 @pytest.fixture
 def sample_course():
@@ -210,3 +213,134 @@ class TestDataHelper:
 def test_data_helper():
     """Test data helper instance"""
     return TestDataHelper()
+
+# API Testing Fixtures
+
+@pytest.fixture
+def mock_rag_system():
+    """Mock RAG system for API testing"""
+    mock_rag = Mock(spec=RAGSystem)
+    mock_rag.query.return_value = (
+        "This is a test response",
+        [Source(display="Test Course - Lesson 1", link="https://test.link")]
+    )
+    mock_rag.get_course_analytics.return_value = {
+        "total_courses": 2,
+        "course_titles": ["Test Course 1", "Test Course 2"]
+    }
+    mock_rag.session_manager = Mock(spec=SessionManager)
+    mock_rag.session_manager.create_session.return_value = "test_session_id"
+    mock_rag.session_manager.clear_session.return_value = None
+    mock_rag.add_course_folder.return_value = (2, 50)
+    return mock_rag
+
+@pytest.fixture
+def test_app_factory():
+    """Factory to create test FastAPI apps"""
+    def _create_test_app(mock_rag_system=None):
+        from fastapi import FastAPI, HTTPException
+        from fastapi.middleware.cors import CORSMiddleware
+        from pydantic import BaseModel
+        from typing import List, Optional
+        
+        # Create test app without static files
+        app = FastAPI(title="Test Course Materials RAG System")
+        
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        
+        # Use provided mock or default
+        rag_system = mock_rag_system or Mock()
+        
+        class QueryRequest(BaseModel):
+            query: str
+            session_id: Optional[str] = None
+
+        class QueryResponse(BaseModel):
+            answer: str
+            sources: List[Source]
+            session_id: str
+
+        class CourseStats(BaseModel):
+            total_courses: int
+            course_titles: List[str]
+        
+        @app.post("/api/query", response_model=QueryResponse)
+        async def query_documents(request: QueryRequest):
+            try:
+                session_id = request.session_id
+                if not session_id:
+                    session_id = rag_system.session_manager.create_session()
+                
+                answer, sources = rag_system.query(request.query, session_id)
+                
+                return QueryResponse(
+                    answer=answer,
+                    sources=sources,
+                    session_id=session_id
+                )
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @app.get("/api/courses", response_model=CourseStats)
+        async def get_course_stats():
+            try:
+                analytics = rag_system.get_course_analytics()
+                return CourseStats(
+                    total_courses=analytics["total_courses"],
+                    course_titles=analytics["course_titles"]
+                )
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @app.delete("/api/sessions/{session_id}/clear")
+        async def clear_session(session_id: str):
+            try:
+                rag_system.session_manager.clear_session(session_id)
+                return {"status": "success", "message": f"Session {session_id} cleared"}
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @app.get("/")
+        async def root():
+            return {"message": "Course Materials RAG System API"}
+        
+        return app
+    
+    return _create_test_app
+
+@pytest.fixture
+def test_client(test_app_factory, mock_rag_system):
+    """Test client for API testing"""
+    app = test_app_factory(mock_rag_system)
+    return TestClient(app)
+
+@pytest.fixture
+def api_test_data():
+    """Test data for API testing"""
+    return {
+        "valid_query": {
+            "query": "What is computer use?",
+            "session_id": "test_session_123"
+        },
+        "query_without_session": {
+            "query": "How does Claude work?"
+        },
+        "empty_query": {
+            "query": ""
+        },
+        "long_query": {
+            "query": "A" * 1000
+        }
+    }
+
+@pytest.fixture
+def temp_dir():
+    """Temporary directory for testing"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield tmpdir
